@@ -244,6 +244,8 @@ class MambaInnerFn(torch.autograd.Function):
                 C = C.contiguous()
         if D is not None:
             D = D.contiguous()
+
+        attn_mat = compute_attn_matrix_fn(delta.to(torch.float32), delta_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), L, x.shape, dtype=torch.float32)
             
         if b_rms_weight is not None:
             B = rearrange(B, "b 1 dstate l -> (b l) dstate", l=L).contiguous()
@@ -273,7 +275,8 @@ class MambaInnerFn(torch.autograd.Function):
         ctx.save_for_backward(xz, conv1d_weight, conv1d_bias, x_dbl, x_proj_weight,
                               delta_proj_weight, out_proj_weight, conv1d_out, delta,
                               A, B, C, D, delta_bias, scan_intermediates, b_rms_weight, c_rms_weight, dt_rms_weight, out)
-        return F.linear(rearrange(out_z, "b d l -> b l d"), out_proj_weight, out_proj_bias)
+        out = F.linear(rearrange(out_z, "b d l -> b l d"), out_proj_weight, out_proj_bias)
+        return out, attn_matrix
 
     @staticmethod
     @custom_bwd
@@ -415,3 +418,20 @@ def mamba_inner_ref(
             C = rearrange(C, "(b l) (dstate two) -> b dstate (l two)", l=L, two=2).contiguous()
     y = selective_scan_fn(x, delta, A, B, C, D, z=z, delta_bias=delta_bias, delta_softplus=True)
     return F.linear(rearrange(y, "b d l -> b l d"), out_proj_weight, out_proj_bias)
+
+def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.float32):
+    dt = F.softplus(delta + delta_bias.unsqueeze(0).unsqueeze(-1))
+    dA = torch.exp(torch.einsum("bdl,dn->bldn", dt, A))
+    dB = torch.einsum("bdl,bnl->bldn", dt, B.squeeze(1))
+    AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[1], x_shape[2], x_shape[2]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
+    #cumulative_products = torch.cumprod(dA[:,1:,:,:], dim=1)
+    for r in range(L):
+        for c in range(r+1):
+            curr_C = C[:,:,:,r]
+            currA = torch.ones((dA.shape[0],dA.shape[2],dA.shape[3]),requires_grad=True, dtype = dtype).to(dA.device)
+            if c < r:
+                for i in range(r-c):
+                    currA = currA*dA[:,r-i,:,:]
+            currB = dB[:,c,:,:]
+            AttnMatrixOverCLS[:,:,r,c] = torch.sum(curr_C*currA*currB, axis=-1)
+    return AttnMatrixOverCLS
