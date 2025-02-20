@@ -143,7 +143,7 @@ class Mamba(nn.Module):
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
         # In the backward pass we write dx and dz next to each other to avoid torch.cat
         if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
-            out = mamba_inner_fn(
+            out, attn_mat = mamba_inner_fn(
                 xz,
                 self.conv1d.weight,
                 self.conv1d.bias,
@@ -158,6 +158,7 @@ class Mamba(nn.Module):
                 delta_bias=self.dt_proj.bias.float(),
                 delta_softplus=True,
             )
+            self.attn_matrices.append(attn_mat)
         else:
             x, z = xz.chunk(2, dim=1)
             # Compute short convolution
