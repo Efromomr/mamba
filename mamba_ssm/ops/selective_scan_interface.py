@@ -245,7 +245,7 @@ class MambaInnerFn(torch.autograd.Function):
         if D is not None:
             D = D.contiguous()
 
-        attn_mat = compute_attn_matrix_fn(delta.to(torch.float32), delta_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), L, x.shape, dtype=torch.float32)
+        attn_matrix = compute_attn_matrix_fn(delta.to(torch.float32), delta_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), L, x.shape, dtype=torch.float32)
             
         if b_rms_weight is not None:
             B = rearrange(B, "b 1 dstate l -> (b l) dstate", l=L).contiguous()
