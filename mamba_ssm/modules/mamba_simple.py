@@ -31,7 +31,7 @@ except ImportError:
 class Mamba(nn.Module):
     def __init__(
         self,
-        d_model,
+        dim,
         d_state=16,
         d_conv=4,
         expand=2,
