@@ -50,7 +50,7 @@ class Mamba(nn.Module):
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
-        self.d_model = d_model
+        self.d_model = dim
         self.d_state = d_state
         self.d_conv = d_conv
         self.expand = expand
