@@ -186,7 +186,7 @@ class MambaInnerFn(torch.autograd.Function):
     def forward(ctx, xz, conv1d_weight, conv1d_bias, x_proj_weight, delta_proj_weight,
                 out_proj_weight, out_proj_bias,
                 A, B=None, C=None, D=None, delta_bias=None, B_proj_bias=None,
-                C_proj_bias=None, delta_softplus=True, checkpoint_lvl=1, b_rms_weight=None, c_rms_weight= None, dt_rms_weight= None, b_c_dt_rms_eps=1e-6):
+                C_proj_bias=None, delta_softplus=True, checkpoint_lvl=1, b_rms_weight=None, c_rms_weight= None, dt_rms_weight= None, b_c_dt_rms_eps=1e-6, compute_attn=False):
         """
              xz: (batch, dim, seqlen)
         """
@@ -244,8 +244,8 @@ class MambaInnerFn(torch.autograd.Function):
                 C = C.contiguous()
         if D is not None:
             D = D.contiguous()
-
-        attn_matrix = compute_attn_matrix_fn(delta.to(torch.float32), delta_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), L, x.shape, dtype=torch.float32)
+        if compute_attn:
+            attn_matrix = compute_attn_matrix_fn(delta.to(torch.float32), delta_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), L, x.shape, dtype=torch.float32)
             
         if b_rms_weight is not None:
             B = rearrange(B, "b 1 dstate l -> (b l) dstate", l=L).contiguous()
@@ -276,7 +276,10 @@ class MambaInnerFn(torch.autograd.Function):
                               delta_proj_weight, out_proj_weight, conv1d_out, delta,
                               A, B, C, D, delta_bias, scan_intermediates, b_rms_weight, c_rms_weight, dt_rms_weight, out)
         out = F.linear(rearrange(out_z, "b d l -> b l d"), out_proj_weight, out_proj_bias)
-        return out, attn_matrix
+        if compute_attn:
+            return out, attn_matrix
+        else:
+            return out
 
     @staticmethod
     @custom_bwd
@@ -375,11 +378,12 @@ def mamba_inner_fn(
     xz, conv1d_weight, conv1d_bias, x_proj_weight, delta_proj_weight,
     out_proj_weight, out_proj_bias,
     A, B=None, C=None, D=None, delta_bias=None, B_proj_bias=None,
-    C_proj_bias=None, delta_softplus=True, checkpoint_lvl=1, b_rms_weight= None, c_rms_weight= None, dt_rms_weight= None, b_c_dt_rms_eps=1e-6
+    C_proj_bias=None, delta_softplus=True, checkpoint_lvl=1, b_rms_weight= None, c_rms_weight= None, dt_rms_weight= None, b_c_dt_rms_eps=1e-6,
+    compute_attn = False
 ):
     return MambaInnerFn.apply(xz, conv1d_weight, conv1d_bias, x_proj_weight, delta_proj_weight,
                               out_proj_weight, out_proj_bias,
-                              A, B, C, D, delta_bias, B_proj_bias, C_proj_bias, delta_softplus, checkpoint_lvl, b_rms_weight, c_rms_weight, dt_rms_weight, b_c_dt_rms_eps)
+                              A, B, C, D, delta_bias, B_proj_bias, C_proj_bias, delta_softplus, checkpoint_lvl, b_rms_weight, c_rms_weight, dt_rms_weight, b_c_dt_rms_eps, compute_attn)
 
 
 def mamba_inner_ref(
