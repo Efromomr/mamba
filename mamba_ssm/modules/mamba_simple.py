@@ -47,6 +47,7 @@ class Mamba(nn.Module):
         layer_idx=None,
         device=None,
         dtype=None,
+        compute_attn=False,
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
@@ -60,6 +61,7 @@ class Mamba(nn.Module):
         self.layer_idx = layer_idx
 
         self.attn_matrices = []
+        self.compute_attn = compute_attn
 
         self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
 
@@ -144,23 +146,42 @@ class Mamba(nn.Module):
 
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
         # In the backward pass we write dx and dz next to each other to avoid torch.cat
-        if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
-            out, attn_mat = mamba_inner_fn(
-                xz,
-                self.conv1d.weight,
-                self.conv1d.bias,
-                self.x_proj.weight,
-                self.dt_proj.weight,
-                self.out_proj.weight,
-                self.out_proj.bias,
-                A,
-                None,  # input-dependent B
-                None,  # input-dependent C
-                self.D.float(),
-                delta_bias=self.dt_proj.bias.float(),
-                delta_softplus=True,
-            )
-            self.attn_matrices.append(attn_mat)
+        if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:
+            if self.compute_attn:
+                out, attn_mat = mamba_inner_fn(
+                    xz,
+                    self.conv1d.weight,
+                    self.conv1d.bias,
+                    self.x_proj.weight,
+                    self.dt_proj.weight,
+                    self.out_proj.weight,
+                    self.out_proj.bias,
+                    A,
+                    None,  # input-dependent B
+                    None,  # input-dependent C
+                    self.D.float(),
+                    delta_bias=self.dt_proj.bias.float(),
+                    delta_softplus=True,
+                    compute_attn=compute_attn
+                )
+                self.attn_matrices.append(attn_mat)
+            else:
+                out = mamba_inner_fn(
+                    xz,
+                    self.conv1d.weight,
+                    self.conv1d.bias,
+                    self.x_proj.weight,
+                    self.dt_proj.weight,
+                    self.out_proj.weight,
+                    self.out_proj.bias,
+                    A,
+                    None,  # input-dependent B
+                    None,  # input-dependent C
+                    self.D.float(),
+                    delta_bias=self.dt_proj.bias.float(),
+                    delta_softplus=True,
+                    compute_attn=compute_attn
+                )
         else:
             x, z = xz.chunk(2, dim=1)
             # Compute short convolution
