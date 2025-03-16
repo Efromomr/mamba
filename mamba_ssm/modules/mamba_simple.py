@@ -162,7 +162,7 @@ class Mamba(nn.Module):
                     self.D.float(),
                     delta_bias=self.dt_proj.bias.float(),
                     delta_softplus=True,
-                    compute_attn=compute_attn
+                    compute_attn=self.compute_attn
                 )
                 self.attn_matrices.append(attn_mat)
             else:
@@ -180,7 +180,7 @@ class Mamba(nn.Module):
                     self.D.float(),
                     delta_bias=self.dt_proj.bias.float(),
                     delta_softplus=True,
-                    compute_attn=compute_attn
+                    compute_attn=self.compute_attn
                 )
         else:
             x, z = xz.chunk(2, dim=1)
