@@ -371,7 +371,7 @@ class MambaInnerFn(torch.autograd.Function):
                 dA, dB, dC, dD,
                 ddelta_bias if delta_bias is not None else None,
                 # 6-None are delta_softplus, checkpoint_lvl, b_rms_weight, c_rms_weight, dt_rms_weight, b_c_dt_rms_eps
-                dB_proj_bias, dC_proj_bias, None, None, None, None, None, None)
+                dB_proj_bias, dC_proj_bias, None, None, None, None, None, None, None)
 
 
 def mamba_inner_fn(
