@@ -60,7 +60,7 @@ class Mamba(nn.Module):
         self.use_fast_path = use_fast_path
         self.layer_idx = layer_idx
 
-        self.attn_matrices = []
+        self.attn_matrices = None
         self.compute_attn = compute_attn
 
         self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
@@ -164,7 +164,7 @@ class Mamba(nn.Module):
                     delta_softplus=True,
                     compute_attn=self.compute_attn
                 )
-                self.attn_matrices.append(attn_mat)
+                self.attn_matrices = attn_mat
             else:
                 out = mamba_inner_fn(
                     xz,
