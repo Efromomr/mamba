@@ -19,6 +19,7 @@ except ImportError:
 
 from mamba_ssm.ops.triton.ssd_combined import mamba_chunk_scan_combined
 from mamba_ssm.ops.triton.ssd_combined import mamba_split_conv1d_scan_combined
+from mamba_ssm.ops.selective_scan_interface import compute_attn_matrix_fn
 
 
 class Mamba2Simple(nn.Module):
@@ -46,6 +47,7 @@ class Mamba2Simple(nn.Module):
         layer_idx=None,  # Absorb kwarg for general module
         device=None,
         dtype=None,
+        compute_attn=False,
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
@@ -65,6 +67,8 @@ class Mamba2Simple(nn.Module):
         self.chunk_size = chunk_size
         self.use_mem_eff_path = use_mem_eff_path
         self.layer_idx = layer_idx
+        self.compute_attn = compute_attn
+        self.attn_matrix = None
 
         # Order: [z, x, B, C, dt]
         d_in_proj = 2 * self.d_inner + 2 * self.ngroups * self.d_state + self.nheads
@@ -179,6 +183,9 @@ class Mamba2Simple(nn.Module):
             # Split into 3 main branches: X, B, C
             # These correspond to V, K, Q respectively in the SSM/attention duality
             x, B, C = torch.split(xBC, [self.d_inner, self.ngroups * self.d_state, self.ngroups * self.d_state], dim=-1)
+            if self.compute_attn:
+                self.attn_matrix = compute_attn_matrix_fn(dt.to(torch.float32), self.dt_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), seqlen, x.shape, dtype=torch.float32)
+                
             y = mamba_chunk_scan_combined(
                 rearrange(x, "b l (h p) -> b l h p", p=self.headdim),
                 dt,
