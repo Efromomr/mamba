@@ -25,7 +25,7 @@ from mamba_ssm.ops.selective_scan_interface import compute_attn_matrix_fn
 class Mamba2Simple(nn.Module):
     def __init__(
         self,
-        d_model,
+        dim,
         d_state=64,
         d_conv=4,
         conv_init=None,
@@ -51,12 +51,12 @@ class Mamba2Simple(nn.Module):
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
-        self.d_model = d_model
+        self.dim = dim
         self.d_state = d_state
         self.d_conv = d_conv
         self.conv_init = conv_init
         self.expand = expand
-        self.d_inner = self.expand * self.d_model
+        self.d_inner = self.expand * self.dim
         self.headdim = headdim
         self.ngroups = ngroups
         assert self.d_inner % self.headdim == 0
@@ -72,7 +72,7 @@ class Mamba2Simple(nn.Module):
 
         # Order: [z, x, B, C, dt]
         d_in_proj = 2 * self.d_inner + 2 * self.ngroups * self.d_state + self.nheads
-        self.in_proj = nn.Linear(self.d_model, d_in_proj, bias=bias, **factory_kwargs)
+        self.in_proj = nn.Linear(self.dim, d_in_proj, bias=bias, **factory_kwargs)
 
         conv_dim = self.d_inner + 2 * self.ngroups * self.d_state
         self.conv1d = nn.Conv1d(
@@ -123,7 +123,7 @@ class Mamba2Simple(nn.Module):
         assert RMSNormGated is not None
         self.norm = RMSNormGated(self.d_inner, eps=1e-5, norm_before_gate=False, **factory_kwargs)
 
-        self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
+        self.out_proj = nn.Linear(self.d_inner, self.dim, bias=bias, **factory_kwargs)
 
     def forward(self, u, seq_idx=None):
         """
