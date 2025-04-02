@@ -424,8 +424,10 @@ def mamba_inner_ref(
     return F.linear(rearrange(y, "b d l -> b l d"), out_proj_weight, out_proj_bias)
 
 def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.float32):
+    print(f"A {A.shape}, B {B.shape}, C {C.shape}, D {D.shape}, delta {delta.shape}, x {x_shape}")
     if delta_bias is not None:
         dt = F.softplus(delta + delta_bias.unsqueeze(0).unsqueeze(-1))
+        print(delta_bias.shape)
     else:
         dt = delta
     dA = torch.exp(torch.einsum("bdl,dn->bldn", dt, A))
