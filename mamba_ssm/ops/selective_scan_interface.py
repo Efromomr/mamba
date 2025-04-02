@@ -424,7 +424,10 @@ def mamba_inner_ref(
     return F.linear(rearrange(y, "b d l -> b l d"), out_proj_weight, out_proj_bias)
 
 def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.float32):
-    dt = F.softplus(delta + delta_bias.unsqueeze(0).unsqueeze(-1))
+    if delta_bias is not None:
+        dt = F.softplus(delta + delta_bias.unsqueeze(0).unsqueeze(-1))
+    else:
+        dt = delta
     dA = torch.exp(torch.einsum("bdl,dn->bldn", dt, A))
     dB = torch.einsum("bdl,bnl->bldn", dt, B.squeeze(1))
     AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[1], x_shape[2], x_shape[2]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
