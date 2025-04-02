@@ -184,7 +184,7 @@ class Mamba2Simple(nn.Module):
             # These correspond to V, K, Q respectively in the SSM/attention duality
             x, B, C = torch.split(xBC, [self.d_inner, self.ngroups * self.d_state, self.ngroups * self.d_state], dim=-1)
             if self.compute_attn:
-                self.attn_matrix = compute_attn_matrix_fn(dt.to(torch.float32), self.dt_bias.to(torch.float32), A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), seqlen, x.shape, dtype=torch.float32)
+                self.attn_matrix = compute_attn_matrix_fn(dt.to(torch.float32), None, A.to(torch.float32), B.to(torch.float32), C.to(torch.float32), seqlen, x.shape, dtype=torch.float32)
                 
             y = mamba_chunk_scan_combined(
                 rearrange(x, "b l (h p) -> b l h p", p=self.headdim),
