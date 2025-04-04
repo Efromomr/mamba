@@ -444,3 +444,28 @@ def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.f
             currB = dB[:,c,:,:]
             AttnMatrixOverCLS[:,:,r,c] = torch.sum(curr_C*currA*currB, axis=-1)
     return AttnMatrixOverCLS
+
+def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdim,  dtype=torch.float32):
+    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
+    dt = delta
+    B = B.transpose(1, 2)
+    C = C.transpose(1, 2)
+    A = A.tile(headdim).unsqueeze(dim=-1).repeat_interleave(B.shape[1], dim=1)
+    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
+    attn_matrices = []
+    for i in range(x.shape[2]):
+        dA = torch.exp(torch.einsum("bdl,dn->bldn", dt, A))
+        dB = torch.einsum("bdl,bnl->bldn", dt, B)
+        AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[1], x_shape[2], x_shape[2]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
+        #cumulative_products = torch.cumprod(dA[:,1:,:,:], dim=1)
+        for r in range(L):
+            for c in range(r+1):
+                curr_C = C[:,:,r]
+                currA = torch.ones((dA.shape[0],dA.shape[2],dA.shape[3]),requires_grad=True, dtype = dtype).to(dA.device)
+                if c < r:
+                    for i in range(r-c):
+                        currA = currA*dA[:,r-i,:,:]
+                currB = dB[:,c,:,:]
+                AttnMatrixOverCLS[:,:,r,c] = torch.sum(curr_C*currA*currB, axis=-1)
+        attn_matrices.append(AttnMatrixOverCLS)
+    return attn_matrices
