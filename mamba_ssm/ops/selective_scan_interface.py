@@ -450,7 +450,6 @@ def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdi
     dt = repeat(delta, "b l h -> b l h p", p=headdim).transpose(1, 3)
     B = B.transpose(1, 2)
     C = C.transpose(1, 2)
-    A = A.tile(headdim).unsqueeze(dim=-1).repeat_interleave(, dim=1)
     A = repeat(A, "h -> h p n", p=headdim, n=B.shape[1])
     print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
     attn_matrices = []
