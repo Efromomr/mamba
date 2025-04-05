@@ -447,16 +447,17 @@ def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.f
 
 def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdim,  dtype=torch.float32):
     print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
-    dt = delta
+    dt = repeat(delta, "b l h -> b l h p", p=headdim).transpose(1, 3)
     B = B.transpose(1, 2)
     C = C.transpose(1, 2)
-    A = A.tile(headdim).unsqueeze(dim=-1).repeat_interleave(B.shape[1], dim=1)
+    A = A.tile(headdim).unsqueeze(dim=-1).repeat_interleave(, dim=1)
+    A = repeat(A, "h -> h p n", p=headdim, n=B.shape[1])
     print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
     attn_matrices = []
-    for i in range(x.shape[2]):
-        dA = torch.exp(torch.einsum("bdl,dn->bldn", dt, A))
-        dB = torch.einsum("bdl,bnl->bldn", dt, B)
-        AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[1], x_shape[2], x_shape[2]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
+    for i in range(dt.shape[2]):
+        dA = torch.exp(torch.einsum("bdl,dn->bldn", dt[:, :, i, :], A))
+        dB = torch.einsum("bdl,bnl->bldn", dt[:, :, i, :], B)
+        AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[2], x_shape[1], x_shape[1]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
         #cumulative_products = torch.cumprod(dA[:,1:,:,:], dim=1)
         for r in range(L):
             for c in range(r+1):
