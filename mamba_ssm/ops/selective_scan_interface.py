@@ -449,7 +449,7 @@ def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdi
     print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
     dt = repeat(delta, "b l h -> b l h p", p=headdim).transpose(1, 3)
     B = B.transpose(1, 2)
-    C = C.transpose(1, 2)
+    C = C.transpose(1, 2).unsqueeze(1)
     A = repeat(A, "h -> h p n", p=headdim, n=B.shape[1])
     print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
     attn_matrices = []
@@ -460,7 +460,7 @@ def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdi
         #cumulative_products = torch.cumprod(dA[:,1:,:,:], dim=1)
         for r in range(L):
             for c in range(r+1):
-                curr_C = C[:,:,r]
+                curr_C = C[:,:,:,r]
                 currA = torch.ones((dA.shape[0],dA.shape[2],dA.shape[3]),requires_grad=True, dtype = dtype).to(dA.device)
                 if c < r:
                     for i in range(r-c):
