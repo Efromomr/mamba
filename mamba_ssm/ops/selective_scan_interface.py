@@ -451,12 +451,12 @@ def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdi
     B = B.transpose(1, 2)
     C = C.transpose(1, 2).unsqueeze(1)
     A = repeat(A, "h -> h p n", p=headdim, n=B.shape[1])
-    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
+    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {dt.shape}, x {x_shape}")
     attn_matrices = []
     for i in range(dt.shape[2]):
         dA = torch.exp(torch.einsum("bdl,dn->bldn", dt[:, :, i, :], A[i, :, :]))
         dB = torch.einsum("bdl,bnl->bldn", dt[:, :, i, :], B)
-        AttnMatrixOverCLS = torch.zeros((x_shape[0], x_shape[2], x_shape[1], x_shape[1]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
+        AttnMatrixOverCLS = torch.zeros((x_shape[0], headdim, x_shape[1], x_shape[1]),requires_grad=True).to(dtype).to(dA.device) #BHLL: L vectors per batch and channel
         #cumulative_products = torch.cumprod(dA[:,1:,:,:], dim=1)
         for r in range(L):
             for c in range(r+1):
