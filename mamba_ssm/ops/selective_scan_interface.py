@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn.functional as F
+import gc
 from mamba_ssm.utils.torch import custom_bwd, custom_fwd
 
 from einops import rearrange, repeat
@@ -466,4 +467,6 @@ def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdi
                 currB = dB[:,c,:,:]
                 AttnMatrixOverCLS[:,:,r,c] = torch.sum(curr_C*currA*currB, axis=-1)
         attn_matrices.append(AttnMatrixOverCLS)
+        gc.collect()
+        torch.cuda.empty_cache()
     return attn_matrices
