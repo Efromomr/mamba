@@ -446,12 +446,10 @@ def compute_attn_matrix_fn(delta, delta_bias, A, B, C, L, x_shape, dtype=torch.f
     return AttnMatrixOverCLS
 
 def compute_attn_matrix_mamba2_fn(delta, delta_bias, A, B, C, L, x_shape, headdim,  dtype=torch.float32):
-    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {delta.shape}, x {x_shape}")
     dt = repeat(delta, "b l h -> b l h p", p=headdim).transpose(1, 3)
     B = B.transpose(1, 2)
     C = C.transpose(1, 2).unsqueeze(1)
     A = repeat(A, "h -> h p n", p=headdim, n=B.shape[1])
-    print(f"A {A.shape}, B {B.shape}, C {C.shape}, L {L}, delta {dt.shape}, x {x_shape}")
     attn_matrices = []
     for i in range(dt.shape[2]):
         dA = torch.exp(torch.einsum("bdl,dn->bldn", dt[:, :, i, :], A[i, :, :]))
